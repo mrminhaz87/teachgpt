@@ -1,0 +1,136 @@
+<!-- src/lib/VideoGallery.svelte -->
+<script>
+  import { onMount } from 'svelte';
+  import { fade, scale } from 'svelte/transition';
+
+  // Use Vite's import.meta.glob to find all MP4 files recursively
+  const videoModules = import.meta.glob('/public/movie/**/*.mp4', { eager: true });
+
+  let videos = [];
+  let selectedVideo = null;
+  let loading = true;
+
+  onMount(() => {
+    // Transform imported modules into video objects
+    videos = Object.keys(videoModules)
+      .filter(path => {
+        // Extract filename
+        const filename = path.split('/').pop();
+        // Exclude files starting with "uncached"
+        return !filename.startsWith('uncached');
+      })
+      .map(path => {
+        // Extract filename and remove extension
+        const title = path.split('/').pop().replace('.mp4', '');
+        
+        // Convert path to a web-accessible URL
+        const url = path.replace('/public', '');
+        
+        return {
+          url,
+          title,
+          thumbnail: `${url}#t=0.1`
+        };
+      });
+
+    loading = false;
+  });
+
+  function handleVideoClick(video) {
+    selectedVideo = video;
+  }
+
+  function handleKeyDown(event, video) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      handleVideoClick(video);
+    }
+  }
+</script>
+
+<div class="min-h-[80vh] space-y-8">
+  {#if loading}
+    <div class="flex justify-center items-center h-64">
+      <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+    </div>
+  {:else if videos.length === 0}
+    <div class="text-center py-12 bg-black/20 rounded-xl backdrop-blur-lg border border-gray-800/50">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-300">No videos found</h3>
+    </div>
+  {:else}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {#each videos as video}
+        <button
+          type="button"
+          class="group relative bg-black/20 rounded-xl overflow-hidden cursor-pointer transform hover:scale-105 transition-all duration-200 backdrop-blur-lg border border-gray-800/50 w-full text-left"
+          on:click={() => handleVideoClick(video)}
+          on:keydown={(e) => handleKeyDown(e, video)}
+          in:scale={{ duration: 200 }}
+          aria-label="Open video: {video.title}"
+        >
+          <div class="aspect-w-16 aspect-h-9">
+            <video
+              src={video.thumbnail}
+              class="w-full object-cover"
+              preload="metadata"
+            >
+              <track kind="captions" />
+            </video>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+          </div>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-100 truncate group-hover:text-blue-400 transition-colors">
+              {video.title}
+            </h3>
+          </div>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
+  {#if selectedVideo}
+    <div 
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50" 
+      transition:fade={{ duration: 200 }}
+      role="dialog"
+      aria-modal="true"
+      on:click={() => selectedVideo = null}
+      on:keydown={(e) => e.key === 'Escape' && (selectedVideo = null)}
+      tabindex="0"
+    >
+      <div 
+        class="bg-gray-900/90 p-6 rounded-xl max-w-4xl w-full mx-4 border border-gray-800/50" 
+        transition:scale={{ duration: 200 }}
+        on:click|stopPropagation
+        role="document"
+      >
+        <div class="aspect-w-16 aspect-h-9 bg-black rounded-lg overflow-hidden">
+          <video
+            src={selectedVideo.url}
+            controls
+            autoplay
+            class="w-full"
+          >
+            <track kind="captions" />
+          </video>
+        </div>
+        <div class="mt-4 flex justify-between items-center">
+          <h3 class="text-xl font-medium text-gray-100">{selectedVideo.title}</h3>
+          <button
+            type="button"
+            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white transition-colors flex items-center space-x-2"
+            on:click={() => selectedVideo = null}
+            aria-label="Close video"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Close</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+</div>
