@@ -2,6 +2,9 @@ from claude_api_CS import Client
 from manim_exec import *
 import os
 
+from dotenv import load_dotenv
+load_dotenv()
+
 cookie = os.environ.get('cookie')
 claude_api = Client(cookie)
 MAX_ITERATION = 5

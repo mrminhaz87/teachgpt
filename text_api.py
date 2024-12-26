@@ -13,6 +13,9 @@ from concurrent.futures import ThreadPoolExecutor
 import uuid
 from datetime import datetime, timedelta
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -166,11 +169,8 @@ async def delete_video(filename: str):
         if not base_dir.exists():
             raise HTTPException(status_code=500, detail=f"Videos directory not found")
 
-        # Search for the video file
-        found_file = None
-        parent_tmp_dir = None
-        
-        async def search_video():
+        # Define synchronous search function
+        def search_video_sync():
             for video_dir in base_dir.iterdir():
                 if not video_dir.is_dir():
                     continue
@@ -180,9 +180,10 @@ async def delete_video(filename: str):
                     return video_path, video_dir
             return None, None
 
+        # Execute search in thread pool
         found_file, parent_tmp_dir = await asyncio.get_event_loop().run_in_executor(
             THREAD_POOL,
-            search_video
+            search_video_sync
         )
         
         if not found_file:
